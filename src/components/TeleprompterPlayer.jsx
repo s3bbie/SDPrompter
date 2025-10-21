@@ -15,40 +15,31 @@ export default function TeleprompterPlayer({ script, onExit, onSave }) {
   const [alignCenter, setAlignCenter] = useState(false);
 
   const contentRef = useRef(null);
-  const scrollTimer = useRef(null);
+  const innerRef = useRef(null);
+  const [offset, setOffset] = useState(0);
 
-  // --- Smooth auto-scroll (iPad-safe) ---
+  // --- Simulated scroll loop using translateY ---
   useEffect(() => {
-    const el = contentRef.current;
-    if (!el) return;
-
-    // Clear any existing interval when switching state
-    if (!scrolling) {
-      clearInterval(scrollTimer.current);
-      return;
-    }
-
-    // Force GPU compositing for Safari
-    el.style.transform = "translateZ(0)";
-
-    // Fallback loop using setInterval (works better on iOS PWAs)
-    scrollTimer.current = setInterval(() => {
-      el.scrollTop = el.scrollTop + speed * 0.8;
-    }, 16); // ~60fps
-
-    return () => clearInterval(scrollTimer.current);
+    let frame;
+    const loop = () => {
+      if (scrolling && innerRef.current) {
+        setOffset((prev) => prev - speed * 0.5);
+      }
+      frame = requestAnimationFrame(loop);
+    };
+    loop();
+    return () => cancelAnimationFrame(frame);
   }, [scrolling, speed]);
+
+  // Reset when you hit start again
+  const handleStartStop = () => {
+    if (!scrolling) setOffset(0);
+    setScrolling(!scrolling);
+  };
 
   const handleDone = () => {
     onSave({ ...script, content: text, updated: new Date().toISOString() });
     setEditing(false);
-  };
-
-  const handleStartStop = () => {
-    if (!scrolling && contentRef.current) {
-      contentRef.current.scrollTo({ top: 0, behavior: "smooth" });
-    }
-    setScrolling((prev) => !prev);
   };
 
   return (
@@ -95,19 +86,25 @@ export default function TeleprompterPlayer({ script, onExit, onSave }) {
       ) : (
         <div
           ref={contentRef}
-          className={`flex-1 overflow-y-auto overflow-x-hidden px-10 py-8 transition-transform duration-500 ${
+          className={`flex-1 overflow-hidden px-10 py-8 transition-transform duration-500 ${
             mirror ? "scale-x-[-1]" : ""
           }`}
           style={{
             fontSize: `${fontSize}vw`,
             lineHeight: lineSpacing,
             textAlign: alignCenter ? "center" : "left",
-            scrollBehavior: "smooth",
-            WebkitOverflowScrolling: "touch",
-            transform: "translateZ(0)", // important for iOS GPU scrolling
           }}
         >
-          <div className="whitespace-pre-wrap">{text}</div>
+          <div
+            ref={innerRef}
+            className="whitespace-pre-wrap will-change-transform"
+            style={{
+              transform: `translateY(${offset}px)`,
+              transition: scrolling ? "none" : "transform 0.3s ease-out",
+            }}
+          >
+            {text}
+          </div>
         </div>
       )}
 
