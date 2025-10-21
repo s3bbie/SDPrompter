@@ -10,13 +10,13 @@ export default function TeleprompterPlayer({ script, onExit, onSave }) {
   const [text, setText] = useState(script?.content || "");
 
   // Settings
-  const [fontSize, setFontSize] = useState(5); // em units
+  const [fontSize, setFontSize] = useState(5); // in vw
   const [lineSpacing, setLineSpacing] = useState(1.4);
   const [alignCenter, setAlignCenter] = useState(false);
 
   const contentRef = useRef(null);
 
-  // --- Smooth scrolling ---
+  // --- Smooth auto-scroll ---
   useEffect(() => {
     let frame;
     const loop = () => {
@@ -78,13 +78,15 @@ export default function TeleprompterPlayer({ script, onExit, onSave }) {
       ) : (
         <div
           ref={contentRef}
-          className={`flex-1 overflow-hidden px-10 py-8 select-none transition-transform duration-500 ${
+          className={`flex-1 overflow-y-auto overflow-x-hidden px-10 py-8 select-none transition-transform duration-500 ${
             mirror ? "scale-x-[-1]" : ""
           }`}
           style={{
             fontSize: `${fontSize}vw`,
             lineHeight: lineSpacing,
             textAlign: alignCenter ? "center" : "left",
+            scrollBehavior: "smooth",
+            touchAction: "pan-y",
           }}
         >
           <div className="whitespace-pre-wrap">{text}</div>
@@ -114,9 +116,15 @@ export default function TeleprompterPlayer({ script, onExit, onSave }) {
             </button>
           </div>
 
-          {/* Center */}
+          {/* Center Start / Stop */}
           <button
-            onClick={() => setScrolling(!scrolling)}
+            onClick={() => {
+              // Reset scroll position when starting
+              if (!scrolling && contentRef.current) {
+                contentRef.current.scrollTo({ top: 0, behavior: "smooth" });
+              }
+              setScrolling(!scrolling);
+            }}
             className={`px-6 py-2 rounded-full font-medium text-white transition ${
               scrolling
                 ? "bg-red-600 hover:bg-red-700"
