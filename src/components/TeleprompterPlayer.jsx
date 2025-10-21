@@ -10,23 +10,33 @@ export default function TeleprompterPlayer({ script, onExit, onSave }) {
   const [text, setText] = useState(script?.content || "");
 
   // Settings
-  const [fontSize, setFontSize] = useState(5); // in vw
+  const [fontSize, setFontSize] = useState(5);
   const [lineSpacing, setLineSpacing] = useState(1.4);
   const [alignCenter, setAlignCenter] = useState(false);
 
   const contentRef = useRef(null);
+  const scrollTimer = useRef(null);
 
-  // --- Smooth auto-scroll ---
+  // --- Smooth auto-scroll (iPad-safe) ---
   useEffect(() => {
-    let frame;
-    const loop = () => {
-      if (scrolling && contentRef.current) {
-        contentRef.current.scrollTop += speed * 0.8;
-      }
-      frame = requestAnimationFrame(loop);
-    };
-    loop();
-    return () => cancelAnimationFrame(frame);
+    const el = contentRef.current;
+    if (!el) return;
+
+    // Clear any existing interval when switching state
+    if (!scrolling) {
+      clearInterval(scrollTimer.current);
+      return;
+    }
+
+    // Force GPU compositing for Safari
+    el.style.transform = "translateZ(0)";
+
+    // Fallback loop using setInterval (works better on iOS PWAs)
+    scrollTimer.current = setInterval(() => {
+      el.scrollTop = el.scrollTop + speed * 0.8;
+    }, 16); // ~60fps
+
+    return () => clearInterval(scrollTimer.current);
   }, [scrolling, speed]);
 
   const handleDone = () => {
@@ -34,8 +44,15 @@ export default function TeleprompterPlayer({ script, onExit, onSave }) {
     setEditing(false);
   };
 
+  const handleStartStop = () => {
+    if (!scrolling && contentRef.current) {
+      contentRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    setScrolling((prev) => !prev);
+  };
+
   return (
-    <div className="fixed inset-0 bg-black text-white flex flex-col z-50">
+    <div className="fixed inset-0 bg-black text-white flex flex-col z-50 select-none">
       {/* --- Top Bar --- */}
       <div className="flex justify-between items-center px-4 py-3">
         <button
@@ -66,7 +83,7 @@ export default function TeleprompterPlayer({ script, onExit, onSave }) {
         )}
       </div>
 
-      {/* --- Main Area --- */}
+      {/* --- Main Text Area --- */}
       {editing ? (
         <textarea
           autoFocus
@@ -78,7 +95,7 @@ export default function TeleprompterPlayer({ script, onExit, onSave }) {
       ) : (
         <div
           ref={contentRef}
-          className={`flex-1 overflow-y-auto overflow-x-hidden px-10 py-8 select-none transition-transform duration-500 ${
+          className={`flex-1 overflow-y-auto overflow-x-hidden px-10 py-8 transition-transform duration-500 ${
             mirror ? "scale-x-[-1]" : ""
           }`}
           style={{
@@ -86,14 +103,15 @@ export default function TeleprompterPlayer({ script, onExit, onSave }) {
             lineHeight: lineSpacing,
             textAlign: alignCenter ? "center" : "left",
             scrollBehavior: "smooth",
-            touchAction: "pan-y",
+            WebkitOverflowScrolling: "touch",
+            transform: "translateZ(0)", // important for iOS GPU scrolling
           }}
         >
           <div className="whitespace-pre-wrap">{text}</div>
         </div>
       )}
 
-      {/* --- Bottom Controls --- */}
+      {/* --- Bottom Bar --- */}
       {!editing && (
         <div className="flex items-center justify-between px-4 py-3 bg-[#111]/90 backdrop-blur-md border-t border-gray-800 rounded-t-2xl text-white">
           {/* Left side */}
@@ -116,15 +134,9 @@ export default function TeleprompterPlayer({ script, onExit, onSave }) {
             </button>
           </div>
 
-          {/* Center Start / Stop */}
+          {/* Start / Stop */}
           <button
-            onClick={() => {
-              // Reset scroll position when starting
-              if (!scrolling && contentRef.current) {
-                contentRef.current.scrollTo({ top: 0, behavior: "smooth" });
-              }
-              setScrolling(!scrolling);
-            }}
+            onClick={handleStartStop}
             className={`px-6 py-2 rounded-full font-medium text-white transition ${
               scrolling
                 ? "bg-red-600 hover:bg-red-700"
@@ -153,13 +165,10 @@ export default function TeleprompterPlayer({ script, onExit, onSave }) {
       {/* --- Settings Drawer --- */}
       {showSettings && (
         <>
-          {/* Dim background */}
           <div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
             onClick={() => setShowSettings(false)}
           />
-
-          {/* Drawer panel */}
           <div className="fixed bottom-0 left-0 w-full bg-[#1a1a1a] border-t border-gray-700 p-5 z-50 rounded-t-2xl shadow-lg">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold">Settings</h2>
