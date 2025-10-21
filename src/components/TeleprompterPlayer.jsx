@@ -9,53 +9,55 @@ export default function TeleprompterPlayer({ script, onExit, onSave }) {
   const [showSettings, setShowSettings] = useState(false);
   const [text, setText] = useState(script?.content || "");
 
-  // visual settings
+  // appearance settings
   const [fontSize, setFontSize] = useState(5);
   const [lineSpacing, setLineSpacing] = useState(1.4);
   const [alignCenter, setAlignCenter] = useState(false);
 
-  // animation state
   const innerRef = useRef(null);
+  const frameRef = useRef(null);
   const [offset, setOffset] = useState(0);
-  const [countdown, setCountdown] = useState(0);
 
-  // --- Simulated scroll loop using translateY ---
+  // --- smooth transform-based scroll loop ---
   useEffect(() => {
-    let frame;
     const loop = () => {
-      if (scrolling && innerRef.current) {
+      if (scrolling) {
         setOffset((prev) => prev - speed * 0.5);
       }
-      frame = requestAnimationFrame(loop);
+      frameRef.current = requestAnimationFrame(loop);
     };
-    loop();
-    return () => cancelAnimationFrame(frame);
+    frameRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(frameRef.current);
   }, [scrolling, speed]);
-
-  // --- Handle start/stop with countdown + resume ---
-  const handleStartStop = () => {
-    if (scrolling) {
-      setScrolling(false); // stop immediately
-      return;
-    }
-
-    // if starting, show countdown first
-    setCountdown(3);
-    let i = 3;
-    const interval = setInterval(() => {
-      i--;
-      if (i > 0) setCountdown(i);
-      else {
-        clearInterval(interval);
-        setCountdown(0);
-        setScrolling(true); // resume from current offset
-      }
-    }, 1000);
-  };
 
   const handleDone = () => {
     onSave({ ...script, content: text, updated: new Date().toISOString() });
     setEditing(false);
+  };
+
+  const handleStartStop = () => {
+    // toggle scrolling; never reset offset
+    setScrolling((prev) => !prev);
+  };
+
+  // --- manual drag on touch devices ---
+  const touchStartY = useRef(null);
+
+  const handleTouchStart = (e) => {
+    if (scrolling) return; // disable drag when auto-scrolling
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchMove = (e) => {
+    if (scrolling || touchStartY.current === null) return;
+    const currentY = e.touches[0].clientY;
+    const delta = currentY - touchStartY.current;
+    touchStartY.current = currentY;
+    setOffset((prev) => prev + delta);
+  };
+
+  const handleTouchEnd = () => {
+    touchStartY.current = null;
   };
 
   return (
@@ -101,39 +103,28 @@ export default function TeleprompterPlayer({ script, onExit, onSave }) {
         />
       ) : (
         <div
-          className={`relative flex-1 overflow-hidden px-10 py-8 transition-transform duration-500 ${
+          className={`relative flex-1 overflow-hidden px-10 py-8 ${
             mirror ? "scale-x-[-1]" : ""
           }`}
           style={{
             fontSize: `${fontSize}vw`,
             lineHeight: lineSpacing,
             textAlign: alignCenter ? "center" : "left",
-            touchAction: "pan-y",
           }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
           <div
             ref={innerRef}
             className="whitespace-pre-wrap will-change-transform"
             style={{
               transform: `translateY(${offset}px)`,
-              transition: scrolling ? "none" : "transform 0.3s ease-out",
-            }}
-            // allow manual drag scroll when stopped
-            onTouchMove={(e) => {
-              if (!scrolling && e.touches.length === 1) {
-                setOffset((prev) => prev + e.touches[0].movementY * 0.5);
-              }
+              transition: scrolling ? "none" : "transform 0.2s ease-out",
             }}
           >
             {text}
           </div>
-
-          {/* Countdown overlay */}
-          {countdown > 0 && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/70 text-white text-8xl font-bold">
-              {countdown}
-            </div>
-          )}
         </div>
       )}
 
@@ -160,17 +151,16 @@ export default function TeleprompterPlayer({ script, onExit, onSave }) {
             </button>
           </div>
 
-          {/* Start / Stop */}
+          {/* Center Start / Stop */}
           <button
             onClick={handleStartStop}
-            disabled={countdown > 0}
             className={`px-6 py-2 rounded-full font-medium text-white transition ${
               scrolling
                 ? "bg-red-600 hover:bg-red-700"
                 : "bg-blue-600 hover:bg-blue-700"
-            } ${countdown > 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+            }`}
           >
-            {scrolling ? "STOP" : countdown > 0 ? countdown : "START"}
+            {scrolling ? "STOP" : "START"}
           </button>
 
           {/* Right side */}
