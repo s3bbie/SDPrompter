@@ -187,7 +187,7 @@ export default function TeleprompterPlayer({ script, onExit, onSave, onDelete })
           placeholder="Start typing your script…"
           style={{ flex:1, width:"100%", background:"#0f0f0f", color:"#fff", fontSize:20, lineHeight:1.7, padding:"20px", border:"none", outline:"none", resize:"none", fontFamily:"inherit" }} />
       ) : (
-        <div style={{ flex:1, overflow:"hidden", position:"relative", cursor:"pointer", transform: mirror ? "scaleX(-1)" : "none" }}
+        <div style={{ flex:1, overflow:"hidden", position:"relative", cursor:"pointer" }}
           onClick={handlePromptTap} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
 
           <div ref={innerRef} style={{
@@ -195,7 +195,8 @@ export default function TeleprompterPlayer({ script, onExit, onSave, onDelete })
             textAlign: alignCenter ? "center" : "left",
             color:fontColor, opacity:textOpacity,
             whiteSpace:"pre-wrap", willChange:"transform",
-            transform:`translateY(${offset}px)`,
+            transform:`translateY(${offset}px) scaleX(${mirror ? -1 : 1})`,
+            transformOrigin:"center top",
             transition: scrolling ? "none" : "transform 0.15s ease-out",
           }}>
             {text || <span style={{ color:"#555", fontStyle:"italic" }}>Tap Edit Script to add your script…</span>}
