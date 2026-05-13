@@ -1,119 +1,208 @@
 import { useState } from "react";
-import { Plus, Wifi } from "lucide-react";
-import ScriptEditor from "../components/ScriptEditor";
+import { Plus, MoreVertical, Trash2, ChevronRight } from "lucide-react";
 import TeleprompterPlayer from "../components/TeleprompterPlayer";
 import { useScript } from "../context/ScriptContext";
 
 export default function Dashboard() {
   const { scripts, createScript, updateScript, deleteScript } = useScript();
   const [activeScript, setActiveScript] = useState(null);
-  const [mode, setMode] = useState("dashboard"); // "dashboard" | "editor" | "player"
+  const [menuOpenId, setMenuOpenId] = useState(null);
 
   const handleNew = () => {
     const s = createScript();
     setActiveScript(s);
-    setMode("editor");
   };
 
-  const handleEdit = (script) => {
+  const handleOpen = (script) => {
+    setMenuOpenId(null);
     setActiveScript(script);
-    setMode("editor");
   };
 
-  const handleSave = (updatedScript) => {
-    updateScript(updatedScript);
-    setActiveScript(updatedScript);
+  const handleSave = (updated) => {
+    updateScript(updated);
+    setActiveScript(updated);
   };
+
+  const handleExit = () => setActiveScript(null);
 
   const handleDelete = (id) => {
     deleteScript(id);
-    setMode("dashboard");
-    setActiveScript(null);
+    setMenuOpenId(null);
+    if (activeScript?.id === id) setActiveScript(null);
   };
-
-  const handleDoneEditing = () => setMode("player");
-  const handleExitPlayer = () => setMode("dashboard");
 
   const formatDate = (iso) => {
     if (!iso) return "";
-    const d = new Date(iso);
-    return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    return new Date(iso).toLocaleDateString("en-GB", {
+      day: "numeric", month: "short", year: "numeric",
+    });
   };
 
+  if (activeScript) {
+    return (
+      <TeleprompterPlayer
+        script={activeScript}
+        onExit={handleExit}
+        onSave={handleSave}
+        onDelete={handleDelete}
+      />
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col">
-      {mode === "dashboard" && (
-        <>
-          <header className="flex justify-between items-center px-6 pt-8 pb-4">
-            <h1 className="text-3xl font-semibold tracking-tight">My Scripts</h1>
-            <div className="flex gap-3">
-              <button
-                onClick={handleNew}
-                className="bg-blue-600 hover:bg-blue-700 transition rounded-full p-2"
-                title="New script"
-              >
-                <Plus size={20} />
-              </button>
-            </div>
-          </header>
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ background: "#0f0f0f", color: "#fff" }}
+      onClick={() => setMenuOpenId(null)}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 pt-12 pb-4">
+        <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: -0.5 }}>My Scripts</h1>
+        <button
+          onClick={(e) => { e.stopPropagation(); handleNew(); }}
+          style={{
+            background: "#2563eb",
+            borderRadius: "50%",
+            width: 36,
+            height: 36,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          <Plus size={20} color="#fff" />
+        </button>
+      </div>
 
-          <main className="flex-1 px-6 py-4">
-            {scripts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 gap-3 text-gray-500">
-                <p className="text-lg">No scripts yet</p>
-                <p className="text-sm">Tap + to create your first script</p>
-              </div>
-            ) : (
-              <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                {scripts.map((script) => (
-                  <div
-                    key={script.id}
-                    className="bg-[#1a1a1a] hover:bg-[#222] transition rounded-2xl p-4 flex flex-col justify-between cursor-pointer shadow-[0_2px_10px_rgba(0,0,0,0.3)] group relative"
-                    onClick={() => handleEdit(script)}
-                  >
-                    <div>
-                      <h2 className="text-base font-medium truncate mb-1">{script.title}</h2>
-                      <p className="text-gray-500 text-xs line-clamp-3">
-                        {script.content || "No content yet"}
-                      </p>
-                    </div>
-                    <div className="flex items-center justify-between mt-3">
-                      <span className="text-gray-600 text-xs">{formatDate(script.updated)}</span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (confirm(`Delete "${script.title}"?`)) handleDelete(script.id);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 transition text-gray-600 hover:text-red-400 p-1 rounded"
-                        title="Delete script"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-                      </button>
-                    </div>
+      {/* Script count */}
+      {scripts.length > 0 && (
+        <p style={{ color: "#666", fontSize: 13, paddingLeft: 20, marginBottom: 8 }}>
+          {scripts.length} {scripts.length === 1 ? "script" : "scripts"}
+        </p>
+      )}
+
+      {/* List */}
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        {scripts.length === 0 ? (
+          <div style={{
+            display: "flex", flexDirection: "column", alignItems: "center",
+            justifyContent: "center", height: 320, gap: 10, color: "#444",
+          }}>
+            <div style={{ fontSize: 48 }}>📄</div>
+            <p style={{ fontSize: 17, fontWeight: 500, color: "#555" }}>No scripts yet</p>
+            <p style={{ fontSize: 14, color: "#444" }}>Tap + to create your first script</p>
+          </div>
+        ) : (
+          <div style={{ padding: "0 16px" }}>
+            {scripts.map((script, i) => (
+              <div key={script.id} style={{ position: "relative" }}>
+                <div
+                  onClick={() => handleOpen(script)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    background: "#1c1c1e",
+                    borderRadius: 14,
+                    padding: "14px 16px",
+                    marginBottom: 10,
+                    cursor: "pointer",
+                    gap: 12,
+                    transition: "background 0.15s",
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = "#242426"}
+                  onMouseLeave={e => e.currentTarget.style.background = "#1c1c1e"}
+                >
+                  {/* Script icon */}
+                  <div style={{
+                    width: 42, height: 42, borderRadius: 10,
+                    background: "#2563eb22",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    flexShrink: 0,
+                  }}>
+                    <span style={{ fontSize: 20 }}>📝</span>
                   </div>
-                ))}
+
+                  {/* Text */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{
+                      fontWeight: 600, fontSize: 15, margin: 0,
+                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                    }}>{script.title}</p>
+                    <p style={{
+                      color: "#666", fontSize: 12, margin: "3px 0 0",
+                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                    }}>
+                      {script.content?.trim()
+                        ? script.content.trim().slice(0, 60) + (script.content.length > 60 ? "…" : "")
+                        : "No content yet"}
+                    </p>
+                    <p style={{ color: "#444", fontSize: 11, margin: "3px 0 0" }}>
+                      {formatDate(script.updated)}
+                    </p>
+                  </div>
+
+                  {/* Right side */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                    <ChevronRight size={16} color="#444" />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMenuOpenId(menuOpenId === script.id ? null : script.id);
+                      }}
+                      style={{
+                        background: "none", border: "none", cursor: "pointer",
+                        padding: 4, color: "#555",
+                      }}
+                    >
+                      <MoreVertical size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Context menu */}
+                {menuOpenId === script.id && (
+                  <div
+                    onClick={e => e.stopPropagation()}
+                    style={{
+                      position: "absolute", right: 16, top: 56, zIndex: 50,
+                      background: "#2c2c2e", borderRadius: 12, overflow: "hidden",
+                      boxShadow: "0 8px 30px rgba(0,0,0,0.6)", minWidth: 160,
+                    }}
+                  >
+                    <button
+                      onClick={() => handleOpen(script)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 10,
+                        width: "100%", padding: "12px 16px",
+                        background: "none", border: "none", color: "#fff",
+                        cursor: "pointer", fontSize: 14, textAlign: "left",
+                      }}
+                    >
+                      <span>✏️</span> Edit Script
+                    </button>
+                    <div style={{ height: 1, background: "#3a3a3c" }} />
+                    <button
+                      onClick={() => {
+                        if (confirm(`Delete "${script.title}"?`)) handleDelete(script.id);
+                      }}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 10,
+                        width: "100%", padding: "12px 16px",
+                        background: "none", border: "none", color: "#ff453a",
+                        cursor: "pointer", fontSize: 14, textAlign: "left",
+                      }}
+                    >
+                      <Trash2 size={14} /> Delete
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
-          </main>
-        </>
-      )}
-
-      {mode === "editor" && activeScript && (
-        <ScriptEditor
-          script={activeScript}
-          onSave={handleSave}
-          onDone={handleDoneEditing}
-          onDelete={handleDelete}
-        />
-      )}
-
-      {mode === "player" && activeScript && (
-        <TeleprompterPlayer
-          script={activeScript}
-          onExit={handleExitPlayer}
-          onSave={handleSave}
-        />
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
