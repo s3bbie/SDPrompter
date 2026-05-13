@@ -19,26 +19,26 @@ export default function TeleprompterPlayer({ script, onExit, onSave, onDelete })
   const [editingTitle, setEditingTitle] = useState(false);
   const [countdown, setCountdown]       = useState(null);
 
-  const [fontSize, setFontSize]         = useState(5);
-  const [lineSpacing, setLineSpacing]   = useState(1.6);
-  const [alignCenter, setAlignCenter]   = useState(false);
-  const [fontColor, setFontColor]       = useState("#ffffff");
-  const [bgColor, setBgColor]           = useState("#000000");
-  const [textOpacity, setTextOpacity]   = useState(1);
-  const [guideEnabled, setGuideEnabled] = useState(false);
-  const [guidePos, setGuidePos]         = useState(40);
+  const [fontSize, setFontSize]           = useState(5);
+  const [lineSpacing, setLineSpacing]     = useState(1.6);
+  const [alignCenter, setAlignCenter]     = useState(false);
+  const [fontColor, setFontColor]         = useState("#ffffff");
+  const [bgColor, setBgColor]             = useState("#000000");
+  const [textOpacity, setTextOpacity]     = useState(1);
+  const [guideEnabled, setGuideEnabled]   = useState(false);
+  const [guidePos, setGuidePos]           = useState(40);
   const [countdownSecs, setCountdownSecs] = useState(3);
-  const [mirror, setMirror]             = useState(false);
+  const [mirror, setMirror]               = useState(false);
 
-  const [elapsed, setElapsed]   = useState(0);
-  const elapsedRef              = useRef(0);
-  const elapsedFrameRef         = useRef(null);
+  const [elapsed, setElapsed] = useState(0);
+  const elapsedRef            = useRef(0);
+  const elapsedFrameRef       = useRef(null);
 
-  const innerRef      = useRef(null);
-  const frameRef      = useRef(null);
-  const speedRef      = useRef(speed);
-  const scrollingRef  = useRef(scrolling);
-  const touchStartY   = useRef(null);
+  const innerRef     = useRef(null);
+  const frameRef     = useRef(null);
+  const speedRef     = useRef(speed);
+  const scrollingRef = useRef(scrolling);
+  const touchStartY  = useRef(null);
   const titleInputRef = useRef(null);
 
   useEffect(() => { speedRef.current = speed; },         [speed]);
@@ -50,11 +50,10 @@ export default function TeleprompterPlayer({ script, onExit, onSave, onDelete })
     return -(innerRef.current.scrollHeight - vh * 0.5);
   }, []);
 
-  // rAF scroll loop
   useEffect(() => {
     const loop = () => {
       if (scrollingRef.current) {
-        setOffset((prev) => {
+        setOffset(prev => {
           const next = prev - speedRef.current * 0.3;
           const min  = getMinOffset();
           if (next <= min) { scrollingRef.current = false; setScrolling(false); return min; }
@@ -67,7 +66,6 @@ export default function TeleprompterPlayer({ script, onExit, onSave, onDelete })
     return () => cancelAnimationFrame(frameRef.current);
   }, [getMinOffset]);
 
-  // Countdown
   useEffect(() => {
     if (countdown === null) return;
     if (countdown === 0) { setCountdown(null); setScrolling(true); return; }
@@ -75,7 +73,6 @@ export default function TeleprompterPlayer({ script, onExit, onSave, onDelete })
     return () => clearTimeout(t);
   }, [countdown]);
 
-  // Elapsed timer
   useEffect(() => {
     if (scrolling) {
       const start = Date.now() - elapsedRef.current * 1000;
@@ -93,7 +90,6 @@ export default function TeleprompterPlayer({ script, onExit, onSave, onDelete })
 
   useEffect(() => { if (offset === 0) { elapsedRef.current = 0; setElapsed(0); } }, [offset]);
 
-  // Estimate remaining time based on how far left to scroll vs current speed
   const getRemaining = () => {
     if (!innerRef.current) return 0;
     const distLeft = Math.abs(getMinOffset() - offset);
@@ -101,41 +97,36 @@ export default function TeleprompterPlayer({ script, onExit, onSave, onDelete })
     return Math.max(0, Math.round(distLeft / pxPerSec));
   };
 
-  const formatTime = (s) => {
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}`;
-  };
+  const fmt = s => `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
 
-  const save = (overrides = {}) => {
-    onSave({ ...script, title: overrides.title ?? title, content: overrides.text ?? text, updated: new Date().toISOString() });
-  };
+  const save = (overrides = {}) => onSave({
+    ...script,
+    title: overrides.title ?? title,
+    content: overrides.text ?? text,
+    updated: new Date().toISOString(),
+  });
 
-  const handleExitEditing = () => { save(); setEditing(false); setEditingTitle(false); };
-
-  const handleStartStop = () => {
+  const handleExitEditing  = () => { save(); setEditing(false); setEditingTitle(false); };
+  const handleReset        = () => { setScrolling(false); setCountdown(null); setOffset(0); };
+  const handleSkipBack     = () => { setScrolling(false); setOffset(p => Math.min(MAX_OFFSET, p + SKIP_PX)); };
+  const handleSkipForward  = () => { setScrolling(false); setOffset(p => Math.max(getMinOffset(), p - SKIP_PX)); };
+  const handleStartStop    = () => {
     if (scrolling) { setScrolling(false); return; }
     if (countdown !== null) { setCountdown(null); return; }
     setOffset(0);
-    if (countdownSecs > 0) setCountdown(countdownSecs);
-    else setScrolling(true);
+    countdownSecs > 0 ? setCountdown(countdownSecs) : setScrolling(true);
   };
-
-  const handleReset   = () => { setScrolling(false); setCountdown(null); setOffset(0); };
-  const handleSkipBack    = () => { setScrolling(false); setOffset(prev => Math.min(MAX_OFFSET, prev + SKIP_PX)); };
-  const handleSkipForward = () => { setScrolling(false); setOffset(prev => Math.max(getMinOffset(), prev - SKIP_PX)); };
-  const handlePromptTap   = () => {
+  const handlePromptTap = () => {
     if (editing) return;
     if (countdown !== null) { setCountdown(null); return; }
-    setScrolling(prev => !prev);
+    setScrolling(p => !p);
   };
-
   const handleTouchStart = e => { touchStartY.current = e.touches[0].clientY; };
   const handleTouchMove  = e => {
     if (scrolling || touchStartY.current === null) return;
     const delta = e.touches[0].clientY - touchStartY.current;
     touchStartY.current = e.touches[0].clientY;
-    setOffset(prev => Math.min(MAX_OFFSET, prev + delta));
+    setOffset(p => Math.min(MAX_OFFSET, p + delta));
   };
   const handleTouchEnd = () => { touchStartY.current = null; };
 
@@ -147,22 +138,19 @@ export default function TeleprompterPlayer({ script, onExit, onSave, onDelete })
       {/* ── TOP BAR ── */}
       <div style={{
         display:"flex", alignItems:"center", justifyContent:"space-between",
-        padding: editing ? "12px 16px 10px" : "10px 16px 8px",
+        padding:"10px 16px 8px", gap:10, flexShrink:0,
         borderBottom: editing ? "1px solid #2a2a2a" : "none",
-        gap:10, flexShrink:0,
       }}>
-        {/* Back */}
-        <button onClick={() => { save(); onExit(); }} style={{ display:"flex", alignItems:"center", gap:2, background:"none", border:"none", color:"#2563eb", cursor:"pointer", fontSize:14, fontWeight:500, flexShrink:0, padding:"4px 8px 4px 4px", borderRadius:8, letterSpacing:0.2 }}>
-          <ChevronLeft size={18} style={{ marginLeft:-2 }} /> My Scripts
+        <button onClick={() => { save(); onExit(); }} style={{ display:"flex", alignItems:"center", gap:2, background:"none", border:"none", color:"#2563eb", cursor:"pointer", fontSize:14, fontWeight:500, flexShrink:0, padding:"4px 8px 4px 2px" }}>
+          <ChevronLeft size={18} style={{ marginLeft:-4 }} /> My Scripts
         </button>
 
-        {/* Centre: timers when prompting, title when editing */}
         {editing ? (
           <div style={{ flex:1, textAlign:"center" }}>
             {editingTitle ? (
               <input ref={titleInputRef} value={title} onChange={e => setTitle(e.target.value)}
                 onBlur={() => { save({ title }); setEditingTitle(false); }}
-                onKeyDown={e => { if (e.key==="Enter") { save({ title }); setEditingTitle(false); }}}
+                onKeyDown={e => e.key==="Enter" && (save({ title }), setEditingTitle(false))}
                 style={{ background:"none", border:"none", borderBottom:"1px solid #3a3a3c", color:"#fff", fontSize:15, fontWeight:600, textAlign:"center", outline:"none", width:"100%", padding:"2px 4px" }}
                 autoFocus />
             ) : (
@@ -173,23 +161,21 @@ export default function TeleprompterPlayer({ script, onExit, onSave, onDelete })
             )}
           </div>
         ) : (
-          /* E / R timers — matching the reference app */
-          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-            <span style={{ fontFamily:"monospace", fontSize:13, fontWeight:700, color:"#ef4444", background:"rgba(239,68,68,0.12)", padding:"3px 8px", borderRadius:6, letterSpacing:0.5 }}>
-              E:{formatTime(elapsed)}
+          <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+            <span style={{ fontFamily:"monospace", fontSize:13, fontWeight:700, color:"#ef4444", background:"rgba(239,68,68,0.15)", padding:"3px 8px", borderRadius:6, letterSpacing:0.5 }}>
+              E:{fmt(elapsed)}
             </span>
-            <span style={{ fontFamily:"monospace", fontSize:13, fontWeight:700, color:"#22c55e", background:"rgba(34,197,94,0.12)", padding:"3px 8px", borderRadius:6, letterSpacing:0.5 }}>
-              R:{formatTime(getRemaining())}
+            <span style={{ fontFamily:"monospace", fontSize:13, fontWeight:700, color:"#22c55e", background:"rgba(34,197,94,0.15)", padding:"3px 8px", borderRadius:6, letterSpacing:0.5 }}>
+              R:{fmt(getRemaining())}
             </span>
           </div>
         )}
 
-        {/* Right action */}
         {editing ? (
           <button onClick={handleExitEditing} style={{ background:"none", border:"none", color:"#2563eb", cursor:"pointer", fontSize:14, fontWeight:600, flexShrink:0 }}>Done</button>
         ) : (
           <button onClick={() => { setScrolling(false); setCountdown(null); setEditing(true); }}
-            style={{ display:"flex", alignItems:"center", gap:5, background:"none", border:"none", color:"#2563eb", cursor:"pointer", fontSize:13, fontWeight:500, flexShrink:0, padding:"4px 8px", borderRadius:8 }}>
+            style={{ display:"flex", alignItems:"center", gap:5, background:"none", border:"none", color:"#2563eb", cursor:"pointer", fontSize:13, fontWeight:500, flexShrink:0 }}>
             <Pencil size={13} /> Edit Script
           </button>
         )}
@@ -205,14 +191,14 @@ export default function TeleprompterPlayer({ script, onExit, onSave, onDelete })
           onClick={handlePromptTap} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
 
           <div ref={innerRef} style={{
-            padding:"32px 28px", fontSize:`${fontSize}vw`, lineHeight:lineSpacing,
+            padding:"32px 28px 120px", fontSize:`${fontSize}vw`, lineHeight:lineSpacing,
             textAlign: alignCenter ? "center" : "left",
-            color: fontColor, opacity: textOpacity,
+            color:fontColor, opacity:textOpacity,
             whiteSpace:"pre-wrap", willChange:"transform",
             transform:`translateY(${offset}px)`,
             transition: scrolling ? "none" : "transform 0.15s ease-out",
           }}>
-            {text || <span style={{ color:"#444", fontStyle:"italic" }}>Tap Edit Script to add your script…</span>}
+            {text || <span style={{ color:"#555", fontStyle:"italic" }}>Tap Edit Script to add your script…</span>}
           </div>
 
           {guideEnabled && (
@@ -229,60 +215,59 @@ export default function TeleprompterPlayer({ script, onExit, onSave, onDelete })
           )}
 
           {!scrolling && !isCountingDown && offset !== 0 && (
-            <div style={{ position:"absolute", top:14, left:"50%", transform:"translateX(-50%)", background:"rgba(0,0,0,0.45)", color:"rgba(255,255,255,0.4)", fontSize:11, padding:"3px 12px", borderRadius:20, pointerEvents:"none", letterSpacing:0.3 }}>
+            <div style={{ position:"absolute", top:14, left:"50%", transform:"translateX(-50%)", background:"rgba(0,0,0,0.5)", color:"rgba(255,255,255,0.45)", fontSize:11, padding:"3px 12px", borderRadius:20, pointerEvents:"none" }}>
               Tap to resume
             </div>
           )}
         </div>
       )}
 
-      {/* ── BOTTOM BAR ── */}
+      {/* ── BOTTOM CONTROL BAR — always dark, always visible ── */}
       {!editing && (
-        <div style={{
-          display:"flex", alignItems:"center", justifyContent:"space-between",
-          padding:"10px 20px 20px", gap:12,
-          background:`linear-gradient(to top, ${bgColor === "#ffffff" ? "rgba(0,0,0,0.08)" : "rgba(0,0,0,0.7)"} 0%, transparent 100%)`,
-          backdropFilter:"blur(12px)",
-          WebkitBackdropFilter:"blur(12px)",
-        }}
-          onClick={e => e.stopPropagation()}>
-
-          {/* Gear */}
-          <button onClick={() => setShowSettings(true)} style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.45)", padding:6, flexShrink:0 }}>
-            <Settings size={20} />
-          </button>
-
-          {/* Nav cluster: ↑↓ reset · |← skip back */}
-          <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-            <button onClick={handleReset} title="Reset to top"
-              style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.5)", padding:6, fontSize:18, lineHeight:1 }}>↕</button>
-            <button onClick={handleSkipBack} title="Skip back"
-              style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.5)", padding:6, fontSize:16, lineHeight:1 }}>⏮</button>
-          </div>
-
-          {/* START / STOP */}
-          <button onClick={handleStartStop} style={{
-            background: isCountingDown ? "#d97706" : scrolling ? "#dc2626" : "#2563eb",
-            color:"#fff", border:"none", borderRadius:30,
-            padding:"10px 28px", fontSize:14, fontWeight:700,
-            cursor:"pointer", letterSpacing:1, transition:"background 0.2s",
-            flexShrink:0,
+        <div style={{ padding:"0 12px 16px", flexShrink:0 }} onClick={e => e.stopPropagation()}>
+          <div style={{
+            display:"flex", alignItems:"center", justifyContent:"space-between",
+            background:"#1a1a1a",
+            borderRadius:20,
+            padding:"10px 14px",
+            gap:8,
+            boxShadow:"0 4px 24px rgba(0,0,0,0.6)",
+            border:"1px solid rgba(255,255,255,0.07)",
           }}>
-            {isCountingDown ? "CANCEL" : scrolling ? "STOP" : "START"}
-          </button>
 
-          {/* Skip forward */}
-          <button onClick={handleSkipForward} title="Skip forward"
-            style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.5)", padding:6, fontSize:16, lineHeight:1 }}>⏭</button>
+            {/* Gear */}
+            <button onClick={() => setShowSettings(true)} style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.5)", padding:6, flexShrink:0 }}>
+              <Settings size={19} />
+            </button>
 
-          {/* Speed slider + value */}
-          <div style={{ display:"flex", alignItems:"center", gap:8, flex:1, maxWidth:200 }}>
-            <input type="range" min="1" max="30" step="1" value={speed}
-              onChange={e => setSpeed(parseInt(e.target.value))}
-              style={{ flex:1, accentColor:"#2563eb", minWidth:0 }} />
-            <span style={{ color:"rgba(255,255,255,0.4)", fontSize:13, fontWeight:600, minWidth:20, textAlign:"right", fontVariantNumeric:"tabular-nums" }}>{speed}</span>
+            {/* Reset + skip back */}
+            <div style={{ display:"flex", alignItems:"center", gap:2 }}>
+              <Btn onClick={handleReset} title="Reset to top">↕</Btn>
+              <Btn onClick={handleSkipBack} title="Skip back">⏮</Btn>
+            </div>
+
+            {/* START / STOP pill */}
+            <button onClick={handleStartStop} style={{
+              background: isCountingDown ? "#d97706" : scrolling ? "#dc2626" : "#2563eb",
+              color:"#fff", border:"none", borderRadius:24,
+              padding:"10px 26px", fontSize:14, fontWeight:700,
+              cursor:"pointer", letterSpacing:1, transition:"background 0.2s", flexShrink:0,
+            }}>
+              {isCountingDown ? "CANCEL" : scrolling ? "STOP" : "START"}
+            </button>
+
+            {/* Skip forward */}
+            <Btn onClick={handleSkipForward} title="Skip forward">⏭</Btn>
+
+            {/* Speed slider + number */}
+            <div style={{ display:"flex", alignItems:"center", gap:6, flex:1, minWidth:0 }}>
+              <input type="range" min="1" max="30" step="1" value={speed}
+                onChange={e => setSpeed(parseInt(e.target.value))}
+                style={{ flex:1, accentColor:"#2563eb", minWidth:0 }} />
+              <span style={{ color:"rgba(255,255,255,0.4)", fontSize:13, fontWeight:600, minWidth:22, textAlign:"right", fontVariantNumeric:"tabular-nums" }}>{speed}</span>
+            </div>
+
           </div>
-
         </div>
       )}
 
@@ -291,7 +276,6 @@ export default function TeleprompterPlayer({ script, onExit, onSave, onDelete })
         <>
           <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:40 }} onClick={() => setShowSettings(false)} />
           <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#1c1c1e", borderRadius:"20px 20px 0 0", zIndex:50, maxHeight:"82vh", overflowY:"auto", paddingBottom:44 }}>
-
             <div style={{ display:"flex", justifyContent:"center", padding:"12px 0 4px" }}>
               <div style={{ width:36, height:4, borderRadius:2, background:"#3a3a3c" }} />
             </div>
@@ -299,7 +283,6 @@ export default function TeleprompterPlayer({ script, onExit, onSave, onDelete })
               <span style={{ color:"#fff", fontSize:17, fontWeight:600 }}>Settings</span>
               <button onClick={() => setShowSettings(false)} style={{ background:"none", border:"none", color:"#666", cursor:"pointer" }}><X size={20} /></button>
             </div>
-
             <div style={{ padding:"0 20px", display:"flex", flexDirection:"column", gap:24 }}>
 
               <SettingRow label="Font Size" value={`${fontSize}vw`}>
@@ -310,7 +293,7 @@ export default function TeleprompterPlayer({ script, onExit, onSave, onDelete })
                 <input type="range" min="1" max="2.5" step="0.1" value={lineSpacing} onChange={e => setLineSpacing(parseFloat(e.target.value))} style={{ flex:1, accentColor:"#2563eb" }} />
               </SettingRow>
 
-              <SettingRow label="Text Opacity" value={`${Math.round(textOpacity * 100)}%`}>
+              <SettingRow label="Text Opacity" value={`${Math.round(textOpacity*100)}%`}>
                 <input type="range" min="0.2" max="1" step="0.05" value={textOpacity} onChange={e => setTextOpacity(parseFloat(e.target.value))} style={{ flex:1, accentColor:"#2563eb" }} />
               </SettingRow>
 
@@ -362,7 +345,7 @@ export default function TeleprompterPlayer({ script, onExit, onSave, onDelete })
               </div>
 
               <div style={{ borderTop:"1px solid #2a2a2a", paddingTop:20 }}>
-                <button onClick={() => { if (confirm(`Delete "${title}"?`)) { onDelete(script.id); } }}
+                <button onClick={() => { if (confirm(`Delete "${title}"?`)) onDelete(script.id); }}
                   style={{ width:"100%", padding:13, borderRadius:12, background:"#2a1a1a", border:"1px solid #3a1a1a", color:"#ff453a", fontSize:15, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
                   <Trash2 size={16} /> Delete Script
                 </button>
@@ -376,6 +359,15 @@ export default function TeleprompterPlayer({ script, onExit, onSave, onDelete })
   );
 }
 
+// ── Helpers ──
+
+function Btn({ onClick, title, children }) {
+  return (
+    <button onClick={onClick} title={title} style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.5)", padding:"6px 8px", fontSize:17, lineHeight:1, borderRadius:8 }}>
+      {children}
+    </button>
+  );
+}
 function SectionLabel({ children }) {
   return <p style={{ color:"#888", fontSize:11, fontWeight:600, textTransform:"uppercase", letterSpacing:1, margin:0 }}>{children}</p>;
 }
