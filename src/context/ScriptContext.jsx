@@ -1,26 +1,43 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 
 const ScriptContext = createContext();
 
 export const ScriptProvider = ({ children }) => {
-  const [scriptText, setScriptText] = useState("");
-  const [scrollSpeed, setScrollSpeed] = useState(1);
-  const [mirrorHorizontal, setMirrorHorizontal] = useState(false);
-  const [mirrorVertical, setMirrorVertical] = useState(false);
+  const [scripts, setScripts] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("sdprompter_scripts") || "[]");
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem("sdprompter_scripts", JSON.stringify(scripts));
+  }, [scripts]);
+
+  const createScript = () => {
+    const newScript = {
+      id: Date.now(),
+      title: "Untitled Script",
+      content: "",
+      updated: new Date().toISOString(),
+    };
+    setScripts((prev) => [newScript, ...prev]);
+    return newScript;
+  };
+
+  const updateScript = (updated) => {
+    setScripts((prev) =>
+      prev.map((s) => (s.id === updated.id ? updated : s))
+    );
+  };
+
+  const deleteScript = (id) => {
+    setScripts((prev) => prev.filter((s) => s.id !== id));
+  };
 
   return (
-    <ScriptContext.Provider
-      value={{
-        scriptText,
-        setScriptText,
-        scrollSpeed,
-        setScrollSpeed,
-        mirrorHorizontal,
-        setMirrorHorizontal,
-        mirrorVertical,
-        setMirrorVertical,
-      }}
-    >
+    <ScriptContext.Provider value={{ scripts, createScript, updateScript, deleteScript }}>
       {children}
     </ScriptContext.Provider>
   );
